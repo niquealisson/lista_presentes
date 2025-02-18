@@ -5,32 +5,32 @@ from .models import Presente
 from django.conf import settings
 import crcmod
 
-
 class Payload:
     def __init__(self, nome, chavepix, valor, cidade, txtId):
         self.nome = nome
         self.chavepix = chavepix
-        self.valor = valor.replace(',', '.')
+        self.valor = valor.replace(',', '.')  # Garantir que o valor tenha ponto decimal
         self.cidade = cidade
         self.txtId = txtId
 
+        # Tamanhos dos campos
         self.nome_tam = len(self.nome)
         self.chavepix_tam = len(self.chavepix)
         self.valor_tam = len(self.valor)
         self.cidade_tam = len(self.cidade)
         self.txtId_tam = len(self.txtId)
 
+        # Componentes do Payload Pix
         self.merchantAccount_tam = f'0014BR.GOV.BCB.PIX01{self.chavepix_tam:02}{self.chavepix}'
-        self.transactionAmount_tam = f'{self.valor_tam:02}{float(self.valor):.2f}'
+        self.transactionAmount_tam = f'{len(self.valor):02}{float(self.valor):.2f}'  # Corrigido tamanho do valor
         self.addDataField_tam = f'05{self.txtId_tam:02}{self.txtId}'
-        self.nome_tam = f'{self.nome_tam:02}'
-        self.cidade_tam = f'{self.cidade_tam:02}'
-
+        
+        # Campos do Payload
         self.payloadFormat = '000201'
         self.merchantAccount = f'26{len(self.merchantAccount_tam):02}{self.merchantAccount_tam}'
         self.merchantCategCode = '52040000'
         self.transactionCurrency = '5303986'
-        self.transactionAmount = f'54{self.transactionAmount_tam}'
+        self.transactionAmount = f'54{len(self.transactionAmount_tam):02}{self.transactionAmount_tam}'
         self.countryCode = '5802BR'
         self.merchantName = f'59{self.nome_tam:02}{self.nome}'
         self.merchantCity = f'60{self.cidade_tam:02}{self.cidade}'
@@ -38,17 +38,20 @@ class Payload:
         self.crc16 = '6304'
 
     def gerarPayload(self):
+        # Gerar o Payload completo
         payload = f'{self.payloadFormat}{self.merchantAccount}{self.merchantCategCode}{self.transactionCurrency}{self.transactionAmount}{self.countryCode}{self.merchantName}{self.merchantCity}{self.addDataField}{self.crc16}'
+        
+        # Calcular CRC16 do Payload
         crc16 = crcmod.mkCrcFun(0x11021, initCrc=0xFFFF, rev=False, xorOut=0x0000)
         crc16_code = crc16(payload.encode('utf-8'))
+        
+        # Retornar o Payload com o CRC16
         return f"{payload}{crc16_code:04X}"
-
 
 # Lista de presentes disponíveis
 def lista_presentes(request):
     presentes = Presente.objects.filter(status=True)  # Somente os disponíveis
     return render(request, 'presentes/lista_presentes.html', {'presentes': presentes})
-
 
 # Confirmação do presente e geração do QR Code
 def confirmar_presente(request, presente_id):
